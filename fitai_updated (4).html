@@ -1,0 +1,1357 @@
+<!DOCTYPE html>
+<html lang="sl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>💪 FitAI Trainer</title>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --blue:       #037CBA;
+      --cyan:       #10D8D7;
+      --green:      #73D166;
+      --sky:        #03B3D4;
+      --ice:        #B9E8F4;
+      --white:      #FEFEFE;
+      --bg:         #f0f9ff;
+      --bg-sidebar: #e8f6fb;
+      --border:     #B9E8F4;
+      --text:       #0b3a52;
+      --text-muted: #5b8ea6;
+      --red:        #e05252;
+      --orange:     #f0a030;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: var(--bg); color: var(--text); font-family: 'Poppins', sans-serif; min-height: 100vh; overflow-x: hidden; }
+
+    /* ── HEADER ── */
+    header { padding: 10px 20px; border-bottom: 2px solid var(--border); background: var(--white); display: flex; align-items: center; justify-content: space-between; box-shadow: 0 2px 12px rgba(3,124,186,0.07); flex-wrap: wrap; gap: 8px; }
+    .header-left { display: flex; align-items: center; gap: 12px; }
+    .header-right { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--border); display: inline-block; margin-right: 6px; transition: background 0.3s; }
+    .status-dot.active { background: var(--green); box-shadow: 0 0 8px rgba(115,209,102,0.5); }
+    .status-text { font-size: 12px; color: var(--text-muted); }
+    .visibility-badge { font-size: 11px; font-weight: 600; padding: 4px 10px; border-radius: 99px; font-family: 'Montserrat', sans-serif; }
+    .visibility-badge.good { background: rgba(115,209,102,0.15); color: #2d9e25; border: 1px solid var(--green); }
+    .visibility-badge.bad  { background: rgba(224,82,82,0.1); color: var(--red); border: 1px solid var(--red); }
+    .user-chip { display: flex; align-items: center; gap: 6px; background: var(--ice); border: 1.5px solid var(--border); border-radius: 99px; padding: 4px 12px; font-size: 12px; color: var(--blue); font-weight: 600; cursor: pointer; transition: all 0.2s; }
+    .user-chip:hover { background: var(--blue); color: white; border-color: var(--blue); }
+    .logout-btn { font-size: 11px; color: var(--text-muted); background: none; border: 1.5px solid var(--border); border-radius: 99px; padding: 4px 10px; cursor: pointer; transition: all 0.2s; font-family: 'Poppins', sans-serif; }
+    .logout-btn:hover { border-color: var(--red); color: var(--red); }
+
+    /* ── LAYOUT ── */
+    .main { display: grid; grid-template-columns: 1fr 310px; height: calc(100vh - 57px); }
+    @media (max-width: 700px) {
+      .main { grid-template-columns: 1fr; grid-template-rows: 50vh 1fr; height: auto; }
+      .sidebar { height: auto; max-height: none; overflow-y: visible; font-size: 13px; }
+      .stats-grid, .records-grid { grid-template-columns: 1fr 1fr; }
+      .stat-val { font-size: 18px; }
+      .sidebar-title { font-size: 9px; }
+      .ex-btn { font-size: 11px; padding: 8px 4px; }
+    }
+
+    /* ── VIDEO ── */
+    .video-section { position: relative; background: #d4eef8; display: flex; align-items: center; justify-content: center; overflow: hidden; min-height: 300px; }
+    #videoEl { position: absolute; width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); opacity: 0.92; }
+    #canvasEl { position: absolute; width: 100%; height: 100%; transform: scaleX(-1); }
+    .overlay-ui { position: absolute; top: 0; left: 0; right: 0; bottom: 0; pointer-events: none; }
+    .silhouette-guide { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); opacity: 0.13; pointer-events: none; height: 80%; max-height: 420px; }
+
+    .rep-counter { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); background: rgba(254,254,254,0.9); backdrop-filter: blur(10px); border: 2px solid var(--cyan); border-radius: 16px; padding: 8px 20px; text-align: center; box-shadow: 0 4px 24px rgba(16,216,215,0.2); white-space: nowrap; }
+    .rep-num { font-family: 'Montserrat', sans-serif; font-size: 40px; font-weight: 700; color: var(--blue); line-height: 1; }
+    .rep-label { font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.12em; margin-top: 2px; }
+
+    .form-meter { position: absolute; top: 12px; right: 12px; background: rgba(254,254,254,0.9); backdrop-filter: blur(10px); border: 2px solid var(--border); border-radius: 14px; padding: 7px 12px; text-align: center; min-width: 68px; }
+    .form-meter-val { font-family: 'Montserrat', sans-serif; font-size: 20px; font-weight: 700; transition: color 0.3s; }
+    .form-meter-val.great { color: #2d9e25; } .form-meter-val.ok { color: var(--orange); } .form-meter-val.bad { color: var(--red); }
+    .form-meter-lbl { font-size: 9px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.1em; }
+
+    .set-timer { position: absolute; top: 12px; left: 12px; background: rgba(254,254,254,0.9); backdrop-filter: blur(10px); border: 2px solid var(--border); border-radius: 14px; padding: 7px 12px; text-align: center; min-width: 68px; }
+    .set-timer-val { font-family: 'Montserrat', sans-serif; font-size: 20px; font-weight: 700; color: var(--blue); }
+    .set-timer-lbl { font-size: 9px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.1em; }
+
+    /* Plank timer ring */
+    .plank-timer-ring { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); display: none; flex-direction: column; align-items: center; pointer-events: none; }
+    .plank-timer-ring.active { display: flex; }
+    .plank-ring-svg { width: 120px; height: 120px; }
+    .plank-ring-bg { fill: none; stroke: rgba(255,255,255,0.3); stroke-width: 8; }
+    .plank-ring-fill { fill: none; stroke: var(--cyan); stroke-width: 8; stroke-linecap: round; transform: rotate(-90deg); transform-origin: 50% 50%; transition: stroke-dashoffset 1s linear; }
+    .plank-ring-text { font-family: 'Montserrat', sans-serif; font-size: 28px; font-weight: 700; fill: white; text-anchor: middle; dominant-baseline: central; }
+    .plank-ring-label { font-family: 'Montserrat', sans-serif; font-size: 11px; fill: rgba(255,255,255,0.8); text-anchor: middle; }
+
+    .phase-badge { position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%); padding: 6px 16px; border-radius: 99px; font-size: 12px; font-weight: 600; font-family: 'Montserrat', sans-serif; transition: all 0.3s; backdrop-filter: blur(8px); white-space: nowrap; }
+    .phase-badge.down  { background: rgba(181,229,181,0.9); border: 1.5px solid var(--green); color: #1a6b14; }
+    .phase-badge.up    { background: rgba(185,232,244,0.9); border: 1.5px solid var(--sky); color: var(--blue); }
+    .phase-badge.stand { background: rgba(254,254,254,0.9); border: 1.5px solid var(--cyan); color: var(--blue); }
+    .phase-badge.rest  { background: rgba(240,160,48,0.15); border: 1.5px solid var(--orange); color: var(--orange); }
+
+    /* ── OVERLAYJI ── */
+    .overlay-panel { position: absolute; inset: 0; background: rgba(240,249,255,0.96); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; transition: opacity 0.4s; padding: 16px; overflow-y: auto; }
+    .overlay-panel.hidden { opacity: 0; pointer-events: none; }
+    .rest-overlay { z-index: 8; } .countdown-overlay { z-index: 9; } .start-overlay-panel { z-index: 10; } .setdone-overlay { z-index: 11; } .workoutdone-overlay { z-index: 12; } .auth-overlay { z-index: 20; }
+
+    .overlay-icon { font-size: 44px; }
+    .overlay-title { font-family: 'Montserrat', sans-serif; font-size: 20px; font-weight: 700; color: var(--blue); text-align: center; }
+    .overlay-sub { font-size: 12px; color: var(--text-muted); text-align: center; max-width: 280px; line-height: 1.7; }
+    .rest-title { font-family: 'Montserrat', sans-serif; font-size: 20px; font-weight: 700; color: var(--orange); }
+    .rest-countdown { font-family: 'Montserrat', sans-serif; font-size: 60px; font-weight: 700; color: var(--blue); line-height: 1; }
+    .countdown-num { font-family: 'Montserrat', sans-serif; font-size: 90px; font-weight: 700; color: var(--blue); line-height: 1; }
+    .countdown-label { font-size: 13px; color: var(--text-muted); font-family: 'Montserrat', sans-serif; }
+    .overlay-btns { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin-top: 4px; }
+
+    .rep-flash { position: absolute; inset: 0; background: rgba(115,209,102,0.18); opacity: 0; pointer-events: none; transition: opacity 0.1s; }
+    .rep-flash.show { opacity: 1; }
+
+    /* ── AUTH OVERLAY ── */
+    .auth-box { background: var(--white); border: 2px solid var(--border); border-radius: 18px; padding: 24px; max-width: 340px; width: 100%; box-shadow: 0 8px 32px rgba(3,124,186,0.1); }
+    .auth-tabs { display: flex; gap: 0; margin-bottom: 20px; background: var(--bg); border-radius: 10px; padding: 3px; }
+    .auth-tab { flex: 1; padding: 8px; text-align: center; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 600; font-family: 'Montserrat', sans-serif; color: var(--text-muted); transition: all 0.2s; }
+    .auth-tab.active { background: var(--white); color: var(--blue); box-shadow: 0 2px 8px rgba(3,124,186,0.1); }
+    .auth-field { margin-bottom: 12px; }
+    .auth-field label { font-size: 11px; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; display: block; margin-bottom: 5px; }
+    .auth-field input { width: 100%; padding: 10px 14px; border: 1.5px solid var(--border); border-radius: 10px; font-size: 13px; font-family: 'Poppins', sans-serif; color: var(--text); background: var(--bg); outline: none; transition: border-color 0.2s; }
+    .auth-field input:focus { border-color: var(--blue); background: var(--white); }
+    .auth-btn { width: 100%; background: linear-gradient(135deg, var(--blue), var(--sky)); color: white; font-family: 'Montserrat', sans-serif; font-size: 14px; font-weight: 700; padding: 12px; border: none; border-radius: 10px; cursor: pointer; transition: transform 0.15s; margin-top: 4px; }
+    .auth-btn:hover { transform: scale(1.02); }
+    .auth-error { font-size: 12px; color: var(--red); text-align: center; min-height: 18px; }
+    .auth-stats { background: var(--bg); border: 1.5px solid var(--border); border-radius: 10px; padding: 10px 14px; text-align: center; margin-top: 8px; }
+    .auth-stats-num { font-family: 'Montserrat', sans-serif; font-size: 28px; font-weight: 700; color: var(--blue); }
+    .auth-stats-lbl { font-size: 11px; color: var(--text-muted); }
+
+    /* ── START OVERLAY ── */
+    .camera-tips { background: var(--white); border: 1.5px solid var(--border); border-radius: 14px; padding: 14px 18px; max-width: 340px; width: 100%; margin-bottom: 6px; }
+    .camera-tips-title { font-family: 'Montserrat', sans-serif; font-size: 11px; font-weight: 700; color: var(--sky); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 8px; }
+    .camera-tip-row { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 6px; font-size: 12px; color: var(--text); line-height: 1.5; }
+    .camera-tip-row:last-child { margin-bottom: 0; }
+    .tip-icon { font-size: 14px; flex-shrink: 0; margin-top: 1px; }
+    .btn-start { background: linear-gradient(135deg, var(--blue), var(--sky)); color: var(--white); font-family: 'Montserrat', sans-serif; font-size: 14px; font-weight: 700; padding: 12px 32px; border: none; border-radius: 99px; cursor: pointer; box-shadow: 0 4px 20px rgba(3,124,186,0.3); transition: transform 0.15s; pointer-events: all; }
+    .btn-start:hover { transform: scale(1.04); }
+    .btn-danger { background: linear-gradient(135deg, #e05252, #f0a030) !important; }
+
+    /* ── WORKOUT SUMMARY ── */
+    .workout-summary { background: var(--white); border: 1.5px solid var(--border); border-radius: 12px; padding: 12px 16px; max-width: 300px; width: 100%; }
+    .workout-summary-row { display: flex; justify-content: space-between; align-items: center; padding: 5px 0; border-bottom: 1px solid var(--border); font-size: 12px; }
+    .workout-summary-row:last-child { border-bottom: none; }
+    .workout-summary-ex { color: var(--blue); font-weight: 600; }
+    .workout-summary-detail { color: var(--text-muted); }
+    .workout-summary-score { font-family: 'Montserrat', sans-serif; font-weight: 700; font-size: 12px; }
+
+    /* ── SIDEBAR ── */
+    .sidebar { background: var(--bg-sidebar); border-left: 2px solid var(--border); padding: 14px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; }
+    .sidebar-title { font-family: 'Montserrat', sans-serif; font-size: 10px; font-weight: 700; color: var(--sky); text-transform: uppercase; letter-spacing: 0.14em; margin-bottom: 4px; }
+
+    .exercise-selector { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+    .ex-btn { background: var(--white); border: 1.5px solid var(--border); border-radius: 10px; padding: 8px 6px; text-align: center; cursor: pointer; transition: all 0.2s; font-size: 12px; color: var(--text-muted); font-family: 'Poppins', sans-serif; }
+    .ex-btn:hover { border-color: var(--cyan); color: var(--blue); background: var(--ice); }
+    .ex-btn.active { background: linear-gradient(135deg, rgba(3,124,186,0.08), rgba(16,216,215,0.1)); border-color: var(--blue); color: var(--blue); font-weight: 600; }
+    .ex-icon { font-size: 17px; display: block; margin-bottom: 2px; }
+
+    .set-config { background: var(--white); border: 1.5px solid var(--border); border-radius: 10px; padding: 10px 12px; }
+    .set-config-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 7px; }
+    .set-config-row:last-child { margin-bottom: 0; }
+    .set-config-label { font-size: 12px; color: var(--text-muted); }
+    .set-config-val { font-family: 'Montserrat', sans-serif; font-size: 15px; font-weight: 700; color: var(--blue); min-width: 28px; text-align: center; }
+    .set-controls { display: flex; gap: 6px; align-items: center; }
+    .set-btn { width: 24px; height: 24px; border-radius: 50%; background: var(--ice); border: 1.5px solid var(--border); color: var(--blue); font-size: 15px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.15s; }
+    .set-btn:hover { background: var(--blue); color: var(--white); border-color: var(--blue); }
+
+    .sets-progress { display: flex; gap: 5px; flex-wrap: wrap; }
+    .set-dot { width: 26px; height: 26px; border-radius: 50%; background: var(--white); border: 2px solid var(--border); display: flex; align-items: center; justify-content: center; font-family: 'Montserrat', sans-serif; font-size: 10px; font-weight: 700; color: var(--text-muted); transition: all 0.3s; }
+    .set-dot.done    { background: var(--green); border-color: var(--green); color: white; }
+    .set-dot.current { background: var(--blue); border-color: var(--blue); color: white; box-shadow: 0 0 10px rgba(3,124,186,0.4); }
+
+    .angle-list { display: flex; flex-direction: column; gap: 6px; }
+    .angle-item { background: var(--white); border-radius: 10px; padding: 8px 12px; border: 1.5px solid var(--border); transition: border-color 0.3s, background 0.3s; }
+    .angle-item.good { border-color: rgba(115,209,102,0.5); background: rgba(181,229,181,0.1); }
+    .angle-item.bad  { border-color: rgba(224,82,82,0.4); background: rgba(224,82,82,0.05); }
+    .angle-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+    .angle-name  { font-size: 11px; color: var(--text-muted); }
+    .angle-value { font-family: 'Montserrat', sans-serif; font-size: 14px; font-weight: 700; transition: color 0.3s; }
+    .angle-value.good { color: #3aad30; } .angle-value.bad { color: var(--red); }
+    .angle-bar-bg { height: 4px; background: var(--ice); border-radius: 2px; }
+    .angle-bar { height: 4px; border-radius: 2px; transition: width 0.15s, background 0.3s; }
+    .angle-bar.good { background: linear-gradient(90deg, var(--green), var(--cyan)); }
+    .angle-bar.bad  { background: linear-gradient(90deg, var(--orange), var(--red)); }
+
+    .feedback-box { background: var(--white); border-radius: 10px; padding: 10px 12px; border: 1.5px solid var(--border); min-height: 56px; }
+    .feedback-text { font-size: 12px; color: var(--text-muted); line-height: 1.7; }
+    .feedback-text.error { color: var(--red); font-weight: 500; } .feedback-text.warn { color: var(--orange); font-weight: 500; } .feedback-text.ok { color: #2d9e25; font-weight: 500; }
+
+    .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+    .stat-card { background: var(--white); border-radius: 10px; padding: 9px; border: 1.5px solid var(--border); text-align: center; }
+    .stat-val { font-family: 'Montserrat', sans-serif; font-size: 20px; font-weight: 700; color: var(--blue); }
+    .stat-lbl { font-size: 10px; color: var(--text-muted); margin-top: 2px; }
+
+    .history-list { display: flex; flex-direction: column; gap: 5px; max-height: 130px; overflow-y: auto; }
+    .history-item { background: var(--white); border: 1.5px solid var(--border); border-radius: 8px; padding: 7px 10px; display: flex; justify-content: space-between; align-items: center; font-size: 11px; }
+    .history-ex { color: var(--blue); font-weight: 600; } .history-detail { color: var(--text-muted); }
+    .history-score { font-family: 'Montserrat', sans-serif; font-weight: 700; font-size: 11px; }
+    .history-score.great { color: #2d9e25; } .history-score.ok { color: var(--orange); } .history-score.bad { color: var(--red); }
+    .history-empty { font-size: 12px; color: var(--text-muted); text-align: center; padding: 8px; }
+
+    .records-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
+    .record-card { background: var(--white); border: 1.5px solid var(--border); border-radius: 8px; padding: 7px 8px; text-align: center; }
+    .record-val { font-family: 'Montserrat', sans-serif; font-size: 15px; font-weight: 700; color: var(--cyan); }
+    .record-ex  { font-size: 10px; color: var(--text-muted); margin-top: 2px; }
+
+    .btn-row { display: flex; gap: 6px; }
+    .action-btn { flex: 1; background: var(--white); border: 1.5px solid var(--border); border-radius: 10px; padding: 8px 4px; color: var(--text-muted); font-size: 11px; cursor: pointer; transition: all 0.2s; font-family: 'Poppins', sans-serif; text-align: center; }
+    .action-btn:hover { border-color: var(--sky); color: var(--blue); background: var(--ice); }
+    .action-btn.danger:hover { border-color: var(--red); color: var(--red); }
+    .action-btn.primary { background: linear-gradient(135deg, var(--blue), var(--sky)); color: white; border-color: var(--blue); font-weight: 600; }
+    .action-btn.primary:hover { transform: scale(1.02); }
+    .action-btn.finish { background: linear-gradient(135deg, #e05252, #f0a030); color: white; border-color: #e05252; font-weight: 600; }
+    .action-btn.finish:hover { transform: scale(1.02); }
+    .action-btn.export { background: linear-gradient(135deg, #2d9e25, var(--cyan)); color: white; border-color: #2d9e25; font-weight: 600; }
+
+    .sidebar::-webkit-scrollbar, .history-list::-webkit-scrollbar { width: 4px; }
+    .sidebar::-webkit-scrollbar-track, .history-list::-webkit-scrollbar-track { background: transparent; }
+    .sidebar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+    .floating-camera-btn {
+      position: absolute;
+      bottom: 24px;
+      right: 24px;
+      z-index: 30;
+      background: linear-gradient(135deg, var(--blue), var(--sky));
+      color: white;
+      border: none;
+      border-radius: 999px;
+      padding: 14px 22px;
+      font-family: 'Montserrat', sans-serif;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      box-shadow: 0 8px 24px rgba(3,124,186,0.35);
+      transition: transform 0.2s ease, opacity 0.2s ease;
+      pointer-events: all;
+    }
+    .floating-camera-btn:hover {
+      transform: scale(1.05);
+    }
+    .floating-camera-btn.hidden {
+      display: none;
+    }
+    @media (max-width: 700px) {
+      .floating-camera-btn {
+        bottom: 16px;
+        right: 16px;
+        padding: 12px 18px;
+        font-size: 13px;
+      }
+    }
+
+  </style>
+</head>
+
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js" crossorigin="anonymous"></script>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getFirestore, collection, addDoc, getDocs, query, orderBy } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyDlmWoD9ib-4gMR53hHuNNCzZUPiXqVZlM",
+    authDomain: "fitai-trainer-8ec0d.firebaseapp.com",
+    projectId: "fitai-trainer-8ec0d",
+    storageBucket: "fitai-trainer-8ec0d.firebasestorage.app",
+    messagingSenderId: "639594916405",
+    appId: "1:639594916405:web:1167d67d5bedf49c519f7c"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+
+  window.saveUserToFirebase = async function(userData) {
+    try {
+      await addDoc(collection(db, "users"), {
+        name: userData.name,
+        username: userData.username,
+        registered: userData.registered,
+        timestamp: new Date()
+      });
+    } catch (e) { console.error("Firebase napaka:", e); }
+  };
+
+  window.getFirebaseUserCount = async function() {
+    try {
+      const snapshot = await getDocs(collection(db, "users"));
+      return snapshot.size;
+    } catch (e) { return 0; }
+  };
+
+  window.getFirebaseUsers = async function() {
+    try {
+      const q = query(collection(db, "users"), orderBy("timestamp", "desc"));
+      const snapshot = await getDocs(q);
+      return snapshot.docs.map(doc => doc.data());
+    } catch (e) { return []; }
+  };
+</script>
+
+<body>
+
+<!-- HEADER -->
+<header>
+  <div class="header-left">
+    <img src="https://i.imgur.com/CD3mwhF.png" alt="FitAI Trainer" style="height:40px; width:auto; object-fit:contain;">
+  </div>
+  <div class="header-right">
+    <span class="visibility-badge bad" id="visibilityBadge" style="display:none">👁 Ni zaznave</span>
+    <button id="muteBtn" onclick="toggleMute()" title="Utišaj zvok" style="font-size:18px; background:none; border:1.5px solid var(--border); border-radius:99px; padding:4px 10px; cursor:pointer; transition:all 0.2s; line-height:1;">🔊</button>
+    <div>
+      <span class="status-dot" id="dotEl"></span>
+      <span class="status-text" id="statusEl">Inicializacija...</span>
+    </div>
+    <div style="position:relative;">
+      <div id="userChip" class="user-chip" style="display:none" onclick="toggleProfile()">
+        <span>👤</span><span id="userChipName">—</span><span style="font-size:10px;margin-left:2px;">▾</span>
+      </div>
+      <div id="profileMenu" style="display:none; position:absolute; top:44px; right:0; background:var(--white); border:2px solid var(--border); border-radius:14px; padding:16px; min-width:240px; box-shadow:0 8px 32px rgba(3,124,186,0.15); z-index:100;">
+        <div style="text-align:center; padding-bottom:12px; border-bottom:1px solid var(--border); margin-bottom:12px;">
+          <div style="font-size:32px; margin-bottom:4px;">👤</div>
+          <div style="font-family:'Montserrat',sans-serif; font-size:15px; font-weight:700; color:var(--blue);" id="profileName">—</div>
+          <div style="font-size:11px; color:var(--text-muted);" id="profileUsername">—</div>
+          <div style="font-size:11px; color:var(--text-muted); margin-top:2px;">📅 Registriran: <span id="profileDate">—</span></div>
+        </div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:12px;">
+          <div style="background:var(--bg); border:1.5px solid var(--border); border-radius:10px; padding:10px; text-align:center;">
+            <div style="font-family:'Montserrat',sans-serif; font-size:20px; font-weight:700; color:var(--blue);" id="profileTotalTrainings">0</div>
+            <div style="font-size:10px; color:var(--text-muted);">treningov</div>
+          </div>
+          <div style="background:var(--bg); border:1.5px solid var(--border); border-radius:10px; padding:10px; text-align:center;">
+            <div style="font-family:'Montserrat',sans-serif; font-size:20px; font-weight:700; color:var(--blue);" id="profileAvgScore">—</div>
+            <div style="font-size:10px; color:var(--text-muted);">povpr. forma</div>
+          </div>
+        </div>
+        <div style="margin-bottom:12px;">
+          <div style="font-size:10px; font-weight:700; color:var(--sky); text-transform:uppercase; letter-spacing:0.1em; margin-bottom:6px;">🏆 Osebni rekordi</div>
+          <div id="profileRecords" style="display:flex; flex-direction:column; gap:4px;"></div>
+        </div>
+        <button onclick="exportCSV()" style="width:100%; background:linear-gradient(135deg,#2d9e25,var(--cyan)); color:white; font-family:'Montserrat',sans-serif; font-size:12px; font-weight:700; padding:9px; border:none; border-radius:10px; cursor:pointer; margin-bottom:8px;">📥 Izvozi CSV</button>
+        <button onclick="logout()" style="width:100%; background:var(--white); color:var(--red); font-family:'Poppins',sans-serif; font-size:12px; font-weight:600; padding:9px; border:1.5px solid var(--red); border-radius:10px; cursor:pointer;">🚪 Odjava</button>
+      </div>
+    </div>
+  </div>
+</header>
+
+<!-- CELOZASLONSKI AUTH ZASLON -->
+<div id="authScreen" style="min-height:calc(100vh - 57px); display:flex; align-items:center; justify-content:center; padding:20px; background:var(--bg);">
+  <div style="width:100%; max-width:380px;">
+    <div style="text-align:center; margin-bottom:24px;">
+      <img src="https://i.imgur.com/CD3mwhF.png" alt="FitAI" style="height:100px; width:auto; object-fit:contain;">
+      <div style="font-family:'Montserrat',sans-serif; font-size:14px; color:var(--text-muted); margin-top:8px;">Tvoj AI fitnes trener</div>
+    </div>
+    <div style="background:var(--white); border:2px solid var(--border); border-radius:18px; padding:24px; box-shadow:0 8px 32px rgba(3,124,186,0.1);">
+      <div style="display:flex; gap:0; margin-bottom:20px; background:var(--bg); border-radius:10px; padding:3px;">
+        <div class="auth-tab active" id="tabLogin" onclick="switchTab('login')" style="flex:1; padding:9px; text-align:center; border-radius:8px; cursor:pointer; font-size:13px; font-weight:600; font-family:'Montserrat',sans-serif; color:var(--text-muted); transition:all 0.2s;">Prijava</div>
+        <div class="auth-tab" id="tabRegister" onclick="switchTab('register')" style="flex:1; padding:9px; text-align:center; border-radius:8px; cursor:pointer; font-size:13px; font-weight:600; font-family:'Montserrat',sans-serif; color:var(--text-muted); transition:all 0.2s;">Registracija</div>
+      </div>
+      <div id="formLogin">
+        <div class="auth-field"><label>Uporabniško ime</label><input type="text" id="loginUser" placeholder="Vnesi ime..."></div>
+        <div class="auth-field"><label>Geslo</label><input type="password" id="loginPass" placeholder="Vnesi geslo..."></div>
+        <div class="auth-error" id="loginError"></div>
+        <button class="auth-btn" onclick="doLogin()">Prijavi se</button>
+      </div>
+      <div id="formRegister" style="display:none">
+        <div class="auth-field"><label>Ime in priimek</label><input type="text" id="regName" placeholder="Janez Novak"></div>
+        <div class="auth-field"><label>Uporabniško ime</label><input type="text" id="regUser" placeholder="janez123"></div>
+        <div class="auth-field"><label>Geslo</label><input type="password" id="regPass" placeholder="Izberi geslo..."></div>
+        <div class="auth-error" id="registerError"></div>
+        <button class="auth-btn" onclick="doRegister()">Registriraj se</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="main" id="mainApp" style="display:none">
+
+  <!-- VIDEO -->
+  <div class="video-section">
+    <video id="videoEl" playsinline autoplay muted></video>
+    <canvas id="canvasEl"></canvas>
+
+    <svg class="silhouette-guide" viewBox="0 0 100 220" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="50" cy="18" r="12" fill="#037CBA"/>
+      <line x1="50" y1="30" x2="50" y2="100" stroke="#037CBA" stroke-width="6" stroke-linecap="round"/>
+      <line x1="50" y1="50" x2="20" y2="80" stroke="#037CBA" stroke-width="5" stroke-linecap="round"/>
+      <line x1="50" y1="50" x2="80" y2="80" stroke="#037CBA" stroke-width="5" stroke-linecap="round"/>
+      <line x1="50" y1="100" x2="30" y2="155" stroke="#037CBA" stroke-width="5" stroke-linecap="round"/>
+      <line x1="50" y1="100" x2="70" y2="155" stroke="#037CBA" stroke-width="5" stroke-linecap="round"/>
+      <line x1="30" y1="155" x2="25" y2="210" stroke="#037CBA" stroke-width="4" stroke-linecap="round"/>
+      <line x1="70" y1="155" x2="75" y2="210" stroke="#037CBA" stroke-width="4" stroke-linecap="round"/>
+    </svg>
+
+    <!-- Plank timer ring -->
+    <div class="plank-timer-ring" id="plankTimerRing">
+      <svg class="plank-ring-svg" viewBox="0 0 120 120">
+        <circle class="plank-ring-bg" cx="60" cy="60" r="50"/>
+        <circle class="plank-ring-fill" id="plankRingFill" cx="60" cy="60" r="50" stroke-dasharray="314" stroke-dashoffset="0"/>
+        <text class="plank-ring-text" x="60" y="56" id="plankRingTime">0:00</text>
+        <text class="plank-ring-label" x="60" y="74">PLANK</text>
+      </svg>
+    </div>
+
+    <div class="overlay-ui">
+      <div class="set-timer"><div class="set-timer-val" id="setTimerVal">0:00</div><div class="set-timer-lbl">čas serije</div></div>
+      <div class="rep-counter"><div class="rep-num" id="repNum">0</div><div class="rep-label" id="repLabel">ponovitve</div></div>
+      <div class="form-meter"><div class="form-meter-val great" id="formMeterVal">—</div><div class="form-meter-lbl">forma</div></div>
+      <div class="phase-badge stand" id="phaseBadge">Pripravi se</div>
+    </div>
+
+    <div class="rep-flash" id="repFlash"></div>
+
+    <button class="floating-camera-btn" id="floatingStartBtn" onclick="handleMainBtn()">
+      ▶ Start trening
+    </button>
+
+
+    <!-- POČITEK -->
+    <div class="overlay-panel rest-overlay hidden" id="restOverlay">
+      <div class="overlay-icon">😮‍💨</div>
+      <div class="rest-title">Počitek</div>
+      <div class="rest-countdown" id="restCountdown">30</div>
+      <div class="overlay-sub">Naslednja serija se začne kmalu...</div>
+      <button class="btn-start" style="padding:9px 24px;font-size:13px" onclick="skipRest()">Preskoči →</button>
+    </div>
+
+    <!-- COUNTDOWN -->
+    <div class="overlay-panel countdown-overlay hidden" id="countdownOverlay">
+      <div class="countdown-label">Začenja se čez</div>
+      <div class="countdown-num" id="countdownNum">3</div>
+      <div class="overlay-sub">Pripravi se!</div>
+    </div>
+
+    <!-- SERIJA KONČANA -->
+    <div class="overlay-panel setdone-overlay hidden" id="setDoneOverlay">
+      <div class="overlay-icon">🎯</div>
+      <div class="overlay-title" id="setDoneTitle">Serije končane!</div>
+      <div class="overlay-sub" id="setDoneMsg">Odlično!</div>
+      <div class="overlay-btns">
+        <button class="btn-start" style="padding:9px 18px;font-size:12px" onclick="continueWithNewExercise()">💪 Nova vaja</button>
+        <button class="btn-start btn-danger" style="padding:9px 18px;font-size:12px" onclick="finishWorkout()">🏁 Zaključi</button>
+      </div>
+    </div>
+
+    <!-- TRENING KONČAN -->
+    <div class="overlay-panel workoutdone-overlay hidden" id="workoutDoneOverlay">
+      <div class="overlay-icon">🏆</div>
+      <div class="overlay-title">Trening zaključen!</div>
+      <div class="overlay-sub">Povzetek tvojega treninga:</div>
+      <div class="workout-summary" id="workoutSummary"></div>
+      <div id="workoutTotals" style="font-family:'Montserrat',sans-serif; font-size:12px; color:var(--text-muted); text-align:center; margin-top:4px;"></div>
+      <div class="overlay-btns">
+        <button class="btn-start" style="padding:9px 20px;font-size:12px" onclick="resetAll()">🔄 Nov trening</button>
+      </div>
+    </div>
+
+    <!-- START -->
+    <div class="overlay-panel start-overlay-panel hidden" id="startOverlay">
+      <img src="https://i.imgur.com/CD3mwhF.png" alt="FitAI Trainer" style="height:80px;width:auto;object-fit:contain;margin-bottom:4px;">
+      <div class="overlay-sub">AI analizira tvojo držo in šteje ponovitve v realnem času</div>
+      <div class="camera-tips">
+        <div class="camera-tips-title">📐 Kako postaviti kamero</div>
+        <div class="camera-tip-row"><span class="tip-icon">↔️</span><span><b>Pogled s strani</b> — za vse vaje</span></div>
+        <div class="camera-tip-row"><span class="tip-icon">📏</span><span>Na <b>višini pasu</b>, vidi celo telo</span></div>
+        <div class="camera-tip-row"><span class="tip-icon">💡</span><span><b>Dobra osvetlitev</b> — ne pred oknom</span></div>
+        <div class="camera-tip-row"><span class="tip-icon">📱</span><span>Telefon postavi <b>s strani</b> na stol</span></div>
+      </div>
+      <button class="btn-start" id="btnStart">Zaženi kamero</button>
+    </div>
+  </div>
+
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+
+    <div>
+      <div class="sidebar-title">Vaja</div>
+      <div class="exercise-selector">
+        <div class="ex-btn active" data-ex="squat"><span class="ex-icon">🦵</span>Počep</div>
+        <div class="ex-btn"       data-ex="pushup"><span class="ex-icon">💪</span>Skleca</div>
+        <div class="ex-btn"       data-ex="lunge"><span class="ex-icon">🏃</span>Izpad</div>
+        <div class="ex-btn"       data-ex="plank"><span class="ex-icon">🧘</span>Plank</div>
+      </div>
+    </div>
+
+    <div>
+      <div class="sidebar-title">Trening načrt</div>
+      <div class="set-config">
+        <div class="set-config-row">
+          <span class="set-config-label">Serije</span>
+          <div class="set-controls">
+            <button class="set-btn" onclick="adjustSets(-1)">−</button>
+            <span class="set-config-val" id="targetSetsVal">3</span>
+            <button class="set-btn" onclick="adjustSets(1)">+</button>
+          </div>
+        </div>
+        <div class="set-config-row">
+          <span class="set-config-label" id="repOrTimeLbl">Cilj reps</span>
+          <div class="set-controls">
+            <button class="set-btn" onclick="adjustReps(-1)">−</button>
+            <span class="set-config-val" id="targetRepsVal">10</span>
+            <button class="set-btn" onclick="adjustReps(1)">+</button>
+          </div>
+        </div>
+        <div class="set-config-row">
+          <span class="set-config-label">Počitek (sek)</span>
+          <div class="set-controls">
+            <button class="set-btn" onclick="adjustRest(-5)">−</button>
+            <span class="set-config-val" id="targetRestVal">30</span>
+            <button class="set-btn" onclick="adjustRest(5)">+</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="sidebar-title">Napredek serij</div>
+      <div class="sets-progress" id="setsProgress"></div>
+    </div>
+
+    <div>
+      <div class="sidebar-title">Koti sklepov</div>
+      <div class="angle-list" id="angleList"></div>
+    </div>
+
+    <div>
+      <div class="sidebar-title">Povratna informacija</div>
+      <div class="feedback-box">
+        <div class="feedback-text" id="feedbackText">Zaženi kamero in začni z vajami.</div>
+      </div>
+    </div>
+
+    <div>
+      <div class="sidebar-title">Statistika — ta serija</div>
+      <div class="stats-grid">
+        <div class="stat-card"><div class="stat-val" id="totalReps">0</div><div class="stat-lbl">skupaj reps</div></div>
+        <div class="stat-card"><div class="stat-val" id="formScore">—</div><div class="stat-lbl">ocena forme</div></div>
+        <div class="stat-card"><div class="stat-val" id="goodReps">0</div><div class="stat-lbl">pravilnih</div></div>
+        <div class="stat-card"><div class="stat-val" id="badReps">0</div><div class="stat-lbl">napačnih</div></div>
+      </div>
+    </div>
+
+    <div>
+      <div class="sidebar-title">🏆 Osebni rekordi</div>
+      <div class="records-grid">
+        <div class="record-card"><div class="record-val" id="prSquat">—</div><div class="record-ex">Počep</div></div>
+        <div class="record-card"><div class="record-val" id="prPushup">—</div><div class="record-ex">Skleca</div></div>
+        <div class="record-card"><div class="record-val" id="prLunge">—</div><div class="record-ex">Izpad</div></div>
+        <div class="record-card"><div class="record-val" id="prPlank">—</div><div class="record-ex">Plank</div></div>
+      </div>
+    </div>
+
+    <div>
+      <div class="sidebar-title">📋 Zgodovina</div>
+      <div class="history-list" id="historyList">
+        <div class="history-empty">Še ni treningov.</div>
+      </div>
+    </div>
+
+    <div class="btn-row">
+      <button class="action-btn" onclick="resetSet()">↺ Nova serija</button>
+      <button class="action-btn primary" id="btnStartSet" onclick="handleMainBtn()">▶ Start</button>
+    </div>
+    <div class="btn-row">
+      <button class="action-btn danger" onclick="resetAll()">🗑 Ponastavi</button>
+    </div>
+
+  </div>
+</div>
+
+<script>
+  // ── ELEMENTI ──────────────────────────────────────────────────────────────────
+  const videoEl         = document.getElementById('videoEl');
+  const canvasEl        = document.getElementById('canvasEl');
+  const ctx             = canvasEl.getContext('2d');
+  const startOverlay    = document.getElementById('startOverlay');
+  const authOverlay     = document.getElementById('authOverlay');
+  const btnStart        = document.getElementById('btnStart');
+  const btnStartSet     = document.getElementById('btnStartSet');
+  const floatingStartBtn = document.getElementById('floatingStartBtn');
+  const dotEl           = document.getElementById('dotEl');
+  const statusEl        = document.getElementById('statusEl');
+  const repNumEl        = document.getElementById('repNum');
+  const repLabel        = document.getElementById('repLabel');
+  const phaseBadge      = document.getElementById('phaseBadge');
+  const angleList       = document.getElementById('angleList');
+  const feedbackText    = document.getElementById('feedbackText');
+  const totalRepsEl     = document.getElementById('totalReps');
+  const goodRepsEl      = document.getElementById('goodReps');
+  const badRepsEl       = document.getElementById('badReps');
+  const formScoreEl     = document.getElementById('formScore');
+  const formMeterVal    = document.getElementById('formMeterVal');
+  const repFlash        = document.getElementById('repFlash');
+  const restOverlay     = document.getElementById('restOverlay');
+  const restCountdown   = document.getElementById('restCountdown');
+  const visibilityBadge = document.getElementById('visibilityBadge');
+  const setTimerVal     = document.getElementById('setTimerVal');
+  const setsProgress    = document.getElementById('setsProgress');
+  const historyList     = document.getElementById('historyList');
+  const countdownOverlay   = document.getElementById('countdownOverlay');
+  const countdownNum       = document.getElementById('countdownNum');
+  const setDoneOverlay     = document.getElementById('setDoneOverlay');
+  const setDoneTitle       = document.getElementById('setDoneTitle');
+  const setDoneMsg         = document.getElementById('setDoneMsg');
+  const workoutDoneOverlay = document.getElementById('workoutDoneOverlay');
+  const workoutSummary     = document.getElementById('workoutSummary');
+  const plankTimerRing     = document.getElementById('plankTimerRing');
+  const plankRingFill      = document.getElementById('plankRingFill');
+  const plankRingTime      = document.getElementById('plankRingTime');
+
+  // ── STANJE ────────────────────────────────────────────────────────────────────
+  let currentExercise = 'squat';
+  let repCount = 0, totalReps = 0, goodReps = 0, badReps = 0;
+  let repPhase = 'up';
+  let formScores = [];
+  let currentLandmarks = null;
+  let poseInstance = null, cameraInstance = null;
+  let targetSets = 3, targetReps = 10, restSeconds = 30;
+  let currentSet = 1, completedSets = 0;
+  let isResting = false, isCountingDown = false;
+  let restTimer = null;
+  let setStartTime = null, setTimerInterval = null;
+  let workoutStarted = false;
+  let workoutLog = [];
+  let cameraReadyTime = null;
+
+  // Plank timer
+  let plankSeconds = 0;
+  let plankInterval = null;
+  let plankTargetSeconds = 30;
+
+  const synth = window.speechSynthesis;
+  let lastVoiceFeedback = '';
+  let voiceCooldown = false;
+  let isMuted = false;
+
+  function toggleMute() {
+    isMuted = !isMuted;
+    document.getElementById('muteBtn').textContent = isMuted ? '🔇' : '🔊';
+    if (isMuted && synth) synth.cancel();
+  }
+
+  // ── AVTENTIKACIJA ─────────────────────────────────────────────────────────────
+  let currentUser = null;
+
+  function getUsers() { return JSON.parse(localStorage.getItem('fitai_users') || '[]'); }
+  function saveUsers(users) { localStorage.setItem('fitai_users', JSON.stringify(users)); }
+  function getUserCount() { return getUsers().length; }
+
+  function updateUserCountDisplay() {
+    const el = document.getElementById('userCountDisplay');
+    if (el) el.textContent = getUserCount();
+  }
+
+  function switchTab(tab) {
+    document.getElementById('tabLogin').classList.toggle('active', tab === 'login');
+    document.getElementById('tabRegister').classList.toggle('active', tab === 'register');
+    document.getElementById('formLogin').style.display = tab === 'login' ? 'block' : 'none';
+    document.getElementById('formRegister').style.display = tab === 'register' ? 'block' : 'none';
+    if (tab === 'register') updateUserCountDisplay();
+  }
+
+  function doRegister() {
+    const name = document.getElementById('regName').value.trim();
+    const user = document.getElementById('regUser').value.trim();
+    const pass = document.getElementById('regPass').value.trim();
+    const errEl = document.getElementById('registerError');
+
+    if (!name || !user || !pass) { errEl.textContent = 'Izpolni vsa polja!'; return; }
+    if (pass.length < 4) { errEl.textContent = 'Geslo mora imeti vsaj 4 znake!'; return; }
+
+    const users = getUsers();
+    if (users.find(u => u.username === user)) { errEl.textContent = 'Uporabniško ime že obstaja!'; return; }
+
+    users.push({ name, username: user, password: pass, registered: new Date().toLocaleDateString('sl-SI') });
+    if (window.saveUserToFirebase) { window.saveUserToFirebase({ name, username: user, registered: new Date().toLocaleDateString("sl-SI") }); }
+    saveUsers(users);
+    errEl.style.color = '#2d9e25';
+    errEl.textContent = 'Registracija uspešna! Prijavi se.';
+    updateUserCountDisplay();
+    setTimeout(() => { errEl.textContent = ''; errEl.style.color = ''; switchTab('login'); }, 1500);
+  }
+
+  function doLogin() {
+    const user = document.getElementById('loginUser').value.trim();
+    const pass = document.getElementById('loginPass').value.trim();
+    const errEl = document.getElementById('loginError');
+
+    if (!user || !pass) { errEl.textContent = 'Vnesi ime in geslo!'; return; }
+
+    const users = getUsers();
+    const found = users.find(u => u.username === user && u.password === pass);
+    if (!found) { errEl.textContent = 'Napačno ime ali geslo!'; return; }
+
+    currentUser = found;
+    localStorage.setItem('fitai_current', JSON.stringify(found));
+
+    // Skrij auth zaslon, pokaži aplikacijo
+    document.getElementById('authScreen').style.display = 'none';
+    document.getElementById('mainApp').style.display = 'grid';
+    document.getElementById('startOverlay').classList.remove('hidden');
+
+    document.getElementById('userChip').style.display = 'flex';
+    document.getElementById('userChipName').textContent = found.name.split(' ')[0];
+    
+    loadUserData();
+  }
+
+  function logout() {
+    currentUser = null;
+    localStorage.removeItem('fitai_current');
+    document.getElementById('profileMenu').style.display = 'none';
+    document.getElementById('mainApp').style.display = 'none';
+    document.getElementById('startOverlay').classList.add('hidden');
+    document.getElementById('userChip').style.display = 'none';
+    
+    resetAll();
+  }
+
+  function toggleProfile() {
+    const menu = document.getElementById('profileMenu');
+    if (menu.style.display === 'none') {
+      updateProfileMenu();
+      menu.style.display = 'block';
+    } else {
+      menu.style.display = 'none';
+    }
+  }
+
+  function updateProfileMenu() {
+    if (!currentUser) return;
+    document.getElementById('profileName').textContent = currentUser.name;
+    document.getElementById('profileUsername').textContent = '@' + currentUser.username;
+    document.getElementById('profileDate').textContent = currentUser.registered || '—';
+    document.getElementById('profileTotalTrainings').textContent = trainingHistory.length;
+
+    const avgScore = trainingHistory.length > 0
+      ? Math.round(trainingHistory.reduce((s, e) => s + e.score, 0) / trainingHistory.length) + '%'
+      : '—';
+    document.getElementById('profileAvgScore').textContent = avgScore;
+
+    const exNames = { squat: 'Počep', pushup: 'Skleca', lunge: 'Izpad', plank: 'Plank' };
+    const recordsEl = document.getElementById('profileRecords');
+    recordsEl.innerHTML = Object.entries(exNames).map(([key, name]) => {
+      const val = personalRecords[key] || '—';
+      return `<div style="display:flex; justify-content:space-between; font-size:12px; padding:4px 0; border-bottom:1px solid var(--border);">
+        <span style="color:var(--text-muted);">${name}</span>
+        <span style="font-family:'Montserrat',sans-serif; font-weight:700; color:var(--blue);">${val}</span>
+      </div>`;
+    }).join('');
+  }
+
+  // Zapri meni ob kliku zunaj
+  document.addEventListener('click', (e) => {
+    const chip = document.getElementById('userChip');
+    const menu = document.getElementById('profileMenu');
+    if (chip && menu && !chip.contains(e.target) && !menu.contains(e.target)) {
+      menu.style.display = 'none';
+    }
+  });
+
+  function loadUserData() {
+    const key = 'fitai_' + currentUser.username;
+    trainingHistory = JSON.parse(localStorage.getItem(key + '_history') || '[]');
+    personalRecords = JSON.parse(localStorage.getItem(key + '_pr') || '{}');
+    renderHistory(); renderRecords();
+  }
+
+  function saveUserData() {
+    if (!currentUser) return;
+    const key = 'fitai_' + currentUser.username;
+    localStorage.setItem(key + '_history', JSON.stringify(trainingHistory));
+    localStorage.setItem(key + '_pr', JSON.stringify(personalRecords));
+  }
+
+  // Preveri ali je že prijavljen
+  const savedUser = localStorage.getItem('fitai_current');
+  let trainingHistory = [];
+  let personalRecords = {};
+
+  if (savedUser) {
+    currentUser = JSON.parse(savedUser);
+    document.getElementById('authScreen').style.display = 'none';
+    document.getElementById('mainApp').style.display = 'grid';
+    document.getElementById('startOverlay').classList.remove('hidden');
+    document.getElementById('userChip').style.display = 'flex';
+    document.getElementById('userChipName').textContent = currentUser.name.split(' ')[0];
+    
+    loadUserData();
+  }
+
+  // ── VAJE ──────────────────────────────────────────────────────────────────────
+  const EXERCISES = {
+    squat: {
+      name: 'Počep', isPlank: false,
+      angles: [
+        { name: 'Koleno levo',  points: [23,25,27], min: 60,  max: 175 },
+        { name: 'Koleno desno', points: [24,26,28], min: 60,  max: 175 },
+        { name: 'Kolk levo',    points: [11,23,25], min: 50,  max: 175 },
+      ],
+      repAngle: { points: [23,25,27], downThresh: 110, upThresh: 150 },
+      tips: { good: '✓ Odlična drža! Kolena sledijo liniji prstov.', bad: '⚠ Preveri položaj kolen — ne smi preseči prstov.', camera: '📐 Za počep postavi kamero S STRANI na višino pasu.' }
+    },
+    pushup: {
+      name: 'Skleca', isPlank: false,
+      angles: [
+        { name: 'Komolec levo',  points: [11,13,15], min: 70,  max: 175 },
+        { name: 'Komolec desno', points: [12,14,16], min: 70,  max: 175 },
+        { name: 'Hrbet (kolk)',  points: [11,23,25], min: 155, max: 195 },
+      ],
+      repAngle: { points: [11,13,15], downThresh: 105, upThresh: 150 },
+      tips: { good: '✓ Telo ravno kot deska — perfektno!', bad: '⚠ Napni jedro — hrbet mora biti raven.', camera: '📐 Za skleco postavi kamero S STRANI na višino tal.' }
+    },
+    lunge: {
+      name: 'Izpad', isPlank: false,
+      angles: [
+        { name: 'Koleno spredaj', points: [23,25,27], min: 70, max: 175 },
+        { name: 'Kolk',           points: [11,23,25], min: 70, max: 175 },
+      ],
+      repAngle: { points: [23,25,27], downThresh: 110, upThresh: 148 },
+      tips: { good: '✓ Izpadni korak je popoln!', bad: '⚠ Koleno sprednje noge ne smi preseči prstov.', camera: '📐 Za izpad postavi kamero S STRANI na višino pasu.' }
+    },
+    plank: {
+      name: 'Plank', isPlank: true,
+      angles: [
+        { name: 'Hrbet ravnost',  points: [11,23,27], min: 158, max: 200 },
+        { name: 'Roka (komolec)', points: [11,13,15], min: 80,  max: 105 },
+      ],
+      repAngle: null,
+      tips: { good: '✓ Telo kot ravna črta — super!', bad: '⚠ Boki padajo ali so previsoko — popravi položaj.', camera: '📐 Za plank postavi kamero S STRANI na višino tal.' }
+    }
+  };
+
+  // ── ZVOKI ─────────────────────────────────────────────────────────────────────
+  const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+  function beepGood() {
+    if (isMuted) return;
+    const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain();
+    osc.connect(gain); gain.connect(audioCtx.destination);
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(520, audioCtx.currentTime);
+    osc.frequency.linearRampToValueAtTime(780, audioCtx.currentTime + 0.12);
+    gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+    gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.25);
+    osc.start(audioCtx.currentTime); osc.stop(audioCtx.currentTime + 0.25);
+  }
+
+  function beepBad() {
+    if (isMuted) return;
+    const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain();
+    osc.connect(gain); gain.connect(audioCtx.destination);
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(300, audioCtx.currentTime);
+    osc.frequency.linearRampToValueAtTime(180, audioCtx.currentTime + 0.2);
+    gain.gain.setValueAtTime(0.25, audioCtx.currentTime);
+    gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.3);
+    osc.start(audioCtx.currentTime); osc.stop(audioCtx.currentTime + 0.3);
+  }
+
+  function beepRep() {
+    if (isMuted) return;
+    [0, 0.15].forEach(delay => {
+      const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain();
+      osc.connect(gain); gain.connect(audioCtx.destination);
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(660, audioCtx.currentTime + delay);
+      gain.gain.setValueAtTime(0.3, audioCtx.currentTime + delay);
+      gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + delay + 0.1);
+      osc.start(audioCtx.currentTime + delay); osc.stop(audioCtx.currentTime + delay + 0.1);
+    });
+  }
+
+  let lastBeepGood = false, beepCooldown = false;
+  function triggerFormBeep(allGood) {
+    if (beepCooldown) return;
+    if (allGood && !lastBeepGood) { beepGood(); lastBeepGood = true; beepCooldown = true; setTimeout(() => beepCooldown = false, 2000); }
+    else if (!allGood && lastBeepGood) { beepBad(); lastBeepGood = false; beepCooldown = true; setTimeout(() => beepCooldown = false, 2000); }
+  }
+
+  function speak(text) {
+    if (!synth || isMuted || voiceCooldown || text === lastVoiceFeedback) return;
+    synth.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = 'sl-SI'; u.rate = 1.05;
+    synth.speak(u);
+    lastVoiceFeedback = text;
+    voiceCooldown = true;
+    setTimeout(() => { voiceCooldown = false; lastVoiceFeedback = ''; }, 3000);
+  }
+
+  // ── NASTAVITVE ────────────────────────────────────────────────────────────────
+  function adjustSets(d) { targetSets = Math.max(1, Math.min(10, targetSets + d)); document.getElementById('targetSetsVal').textContent = targetSets; buildSetsProgress(); }
+  function adjustReps(d) {
+    const ex = EXERCISES[currentExercise];
+    if (ex.isPlank) { plankTargetSeconds = Math.max(10, Math.min(300, plankTargetSeconds + d * 10)); document.getElementById('targetRepsVal').textContent = plankTargetSeconds + 's'; }
+    else { targetReps = Math.max(1, Math.min(50, targetReps + d)); document.getElementById('targetRepsVal').textContent = targetReps; }
+  }
+  function adjustRest(d) { restSeconds = Math.max(5, Math.min(120, restSeconds + d)); document.getElementById('targetRestVal').textContent = restSeconds; }
+
+  // ── PLANK TIMER ───────────────────────────────────────────────────────────────
+  function startPlankTimer() {
+    plankSeconds = 0;
+    plankTimerRing.classList.add('active');
+    repNumEl.textContent = '0s';
+    repLabel.textContent = 'čas planks';
+    clearInterval(plankInterval);
+    plankInterval = setInterval(() => {
+      if (isResting || isCountingDown) return;
+      plankSeconds++;
+      const m = Math.floor(plankSeconds / 60);
+      const s = plankSeconds % 60;
+      const timeStr = m > 0 ? m + ':' + String(s).padStart(2,'0') : s + 's';
+      repNumEl.textContent = timeStr;
+      plankRingTime.textContent = timeStr;
+      // Ring progress
+      const circumference = 314;
+      const progress = Math.min(plankSeconds / plankTargetSeconds, 1);
+      plankRingFill.style.strokeDashoffset = circumference * (1 - progress);
+      if (plankSeconds >= plankTargetSeconds) {
+        clearInterval(plankInterval);
+        beepRep();
+        speak('Plank končan!');
+        const score = goodReps + badReps > 0 ? Math.round((goodReps / (goodReps + badReps)) * 100) : 80;
+        saveSetToHistory(plankSeconds, score);
+        completedSets++;
+        if (completedSets >= targetSets) { buildSetsProgress(); showSetDone(); }
+        else { startRest(); }
+      }
+    }, 1000);
+  }
+
+  function stopPlankTimer() {
+    clearInterval(plankInterval);
+    plankTimerRing.classList.remove('active');
+    repNumEl.textContent = '0';
+    repLabel.textContent = 'ponovitve';
+  }
+
+  // ── SERIJE ────────────────────────────────────────────────────────────────────
+  function buildSetsProgress() {
+    setsProgress.innerHTML = '';
+    for (let i = 1; i <= targetSets; i++) {
+      const dot = document.createElement('div');
+      dot.className = 'set-dot' + (i < currentSet ? ' done' : i === currentSet ? ' current' : '');
+      dot.textContent = i;
+      setsProgress.appendChild(dot);
+    }
+  }
+
+  function startSetTimer() {
+    setStartTime = Date.now();
+    clearInterval(setTimerInterval);
+    setTimerInterval = setInterval(() => {
+      if (isResting || isCountingDown) return;
+      const elapsed = Math.floor((Date.now() - setStartTime) / 1000);
+      const m = Math.floor(elapsed / 60);
+      const s = elapsed % 60;
+      setTimerVal.textContent = m + ':' + String(s).padStart(2, '0');
+    }, 500);
+  }
+
+  function handleMainBtn() {
+    if (workoutStarted) { finishWorkout(); }
+    else {
+      workoutStarted = true;
+      btnStartSet.textContent = '🏁 Zaključi trening';
+      if (floatingStartBtn) floatingStartBtn.textContent = '🏁 Zaključi';
+      btnStartSet.classList.remove('primary');
+      btnStartSet.classList.add('finish');
+      startCountdown();
+    }
+  }
+
+  function startCountdown() {
+    isCountingDown = true;
+    let count = 3;
+    countdownOverlay.classList.remove('hidden');
+    countdownNum.textContent = count;
+    phaseBadge.textContent = count;
+    phaseBadge.className = 'phase-badge stand';
+    const interval = setInterval(() => {
+      count--;
+      if (count > 0) { countdownNum.textContent = count; phaseBadge.textContent = count; }
+      else {
+        clearInterval(interval);
+        countdownOverlay.classList.add('hidden');
+        isCountingDown = false;
+        repPhase = 'up';
+        phaseBadge.textContent = 'Pripravi se';
+        phaseBadge.className = 'phase-badge stand';
+        startSetTimer();
+        speak('Začni!');
+        if (EXERCISES[currentExercise].isPlank) startPlankTimer();
+      }
+    }, 1000);
+  }
+
+  function startRest() {
+    isResting = true;
+    stopPlankTimer();
+    restOverlay.classList.remove('hidden');
+    phaseBadge.textContent = '😮‍💨 Počitek';
+    phaseBadge.className = 'phase-badge rest';
+    let left = restSeconds;
+    restCountdown.textContent = left;
+    speak('Dobro! Počitek.');
+    restTimer = setInterval(() => {
+      left--; restCountdown.textContent = left;
+      if (left <= 0) { clearInterval(restTimer); endRest(); }
+    }, 1000);
+  }
+
+  function endRest() {
+    isResting = false;
+    restOverlay.classList.add('hidden');
+    currentSet++;
+    buildSetsProgress();
+    repCount = 0; goodReps = 0; badReps = 0; formScores = [];
+    repNumEl.textContent = 0; goodRepsEl.textContent = 0; badRepsEl.textContent = 0;
+    formScoreEl.textContent = '—'; formMeterVal.textContent = '—';
+    repPhase = 'up';
+    startCountdown();
+  }
+
+  function skipRest() { clearInterval(restTimer); endRest(); }
+
+  function showSetDone() {
+    const ex = EXERCISES[currentExercise];
+    setDoneTitle.textContent = '✅ ' + ex.name + ' — serije končane!';
+    setDoneMsg.textContent = 'Opravljenih ' + completedSets + ' serij. Izberi novo vajo ali zaključi.';
+    setDoneOverlay.classList.remove('hidden');
+    speak('Serije končane! Odlično!');
+  }
+
+  function continueWithNewExercise() {
+    if (floatingStartBtn) floatingStartBtn.classList.remove('hidden');
+    setDoneOverlay.classList.add('hidden');
+    completedSets = 0; currentSet = 1;
+    resetSet(); buildSetsProgress();
+    feedbackText.textContent = 'Izberi novo vajo in pritisni Start.';
+    feedbackText.className = 'feedback-text';
+    workoutStarted = false;
+    btnStartSet.textContent = '▶ Start';
+    btnStartSet.classList.remove('finish');
+    btnStartSet.classList.add('primary');
+  }
+
+  function finishWorkout() {
+    if (floatingStartBtn) floatingStartBtn.classList.add('hidden');
+    setDoneOverlay.classList.add('hidden');
+    workoutDoneOverlay.classList.remove('hidden');
+    if (workoutLog.length === 0) {
+      workoutSummary.innerHTML = '<div class="history-empty">Ni zabeleženih serij.</div>';
+      document.getElementById('workoutTotals').textContent = '';
+    } else {
+      const byEx = {};
+      workoutLog.forEach(e => {
+        if (!byEx[e.ex]) byEx[e.ex] = { reps: 0, scores: [], sets: 0 };
+        byEx[e.ex].reps += e.reps; byEx[e.ex].scores.push(e.score); byEx[e.ex].sets++;
+      });
+      workoutSummary.innerHTML = Object.entries(byEx).map(([name, data]) => {
+        const avgScore = Math.round(data.scores.reduce((a, b) => a + b, 0) / data.scores.length);
+        const cls = avgScore >= 80 ? 'great' : avgScore >= 50 ? 'ok' : 'bad';
+        return `<div class="workout-summary-row">
+          <span class="workout-summary-ex">${name}</span>
+          <span class="workout-summary-detail">${data.sets} ser. · ${data.reps}</span>
+          <span class="workout-summary-score ${cls}">${avgScore}%</span>
+        </div>`;
+      }).join('');
+      const totalRepsAll = workoutLog.reduce((s, e) => s + e.reps, 0);
+      const avgScore = Math.round(workoutLog.reduce((s, e) => s + e.score, 0) / workoutLog.length);
+      document.getElementById('workoutTotals').innerHTML =
+        `Skupaj: <b style="color:var(--blue)">${workoutLog.length} serij</b> · <b style="color:var(--blue)">${totalRepsAll}</b> · forma <b style="color:var(--blue)">${avgScore}%</b>`;
+    }
+    speak('Bravo! Trening zaključen!');
+  }
+
+  // ── IZVOZ CSV ─────────────────────────────────────────────────────────────────
+  function exportCSV() {
+    if (trainingHistory.length === 0) { alert('Ni podatkov za izvoz!'); return; }
+    const header = 'Datum,Čas,Vaja,Ponovitve,Ocena forme (%)';
+    const rows = trainingHistory.map(e => `${e.date},${e.time},${e.ex},${e.reps},${e.score}`);
+    const csv = [header, ...rows].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'fitai_trening_' + new Date().toLocaleDateString('sl-SI').replace(/\./g, '-') + '.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  // ── ZGODOVINA IN REKORDI ──────────────────────────────────────────────────────
+  function saveSetToHistory(reps, score) {
+    const ex = EXERCISES[currentExercise];
+    const now = new Date();
+    const entry = { ex: ex.name, reps, score, time: now.toLocaleTimeString('sl-SI', { hour: '2-digit', minute: '2-digit' }), date: now.toLocaleDateString('sl-SI') };
+    trainingHistory.unshift(entry);
+    if (trainingHistory.length > 30) trainingHistory.pop();
+    workoutLog.push({ ex: ex.name, reps, score });
+    const prKey = currentExercise;
+    if (!personalRecords[prKey] || reps > personalRecords[prKey]) personalRecords[prKey] = reps;
+    saveUserData();
+    renderHistory(); renderRecords();
+  }
+
+  function renderHistory() {
+    if (trainingHistory.length === 0) { historyList.innerHTML = '<div class="history-empty">Še ni treningov.</div>'; return; }
+    historyList.innerHTML = trainingHistory.slice(0, 8).map(e => {
+      const cls = e.score >= 80 ? 'great' : e.score >= 50 ? 'ok' : 'bad';
+      return `<div class="history-item"><div><div class="history-ex">${e.ex}</div><div class="history-detail">${e.reps} · ${e.time}</div></div><div class="history-score ${cls}">${e.score}%</div></div>`;
+    }).join('');
+  }
+
+  function renderRecords() {
+    ['squat','pushup','lunge','plank'].forEach((k, i) => {
+      document.getElementById(['prSquat','prPushup','prLunge','prPlank'][i]).textContent = personalRecords[k] || '—';
+    });
+  }
+
+  // ── KOTI ──────────────────────────────────────────────────────────────────────
+  function calcAngle(a, b, c) {
+    const rad = Math.atan2(c.y - b.y, c.x - b.x) - Math.atan2(a.y - b.y, a.x - b.x);
+    let angle = Math.abs(rad * 180 / Math.PI);
+    if (angle > 180) angle = 360 - angle;
+    return angle;
+  }
+
+  function getLandmarkPoint(lms, idx) {
+    if (!lms || !lms[idx]) return null;
+    return { x: lms[idx].x, y: lms[idx].y, z: lms[idx].z };
+  }
+
+  function buildAngleUI(ex) {
+    angleList.innerHTML = '';
+    ex.angles.forEach(a => {
+      const key = a.name.replace(/\s/g, '_');
+      const div = document.createElement('div');
+      div.className = 'angle-item'; div.id = 'ai_' + key;
+      div.innerHTML = `<div class="angle-header"><span class="angle-name">${a.name}</span><span class="angle-value" id="av_${key}">—°</span></div><div class="angle-bar-bg"><div class="angle-bar" id="ab_${key}" style="width:50%"></div></div>`;
+      angleList.appendChild(div);
+    });
+
+    // Posodobi UI za plank
+    if (ex.isPlank) {
+      repLabel.textContent = 'čas';
+      document.getElementById('repOrTimeLbl').textContent = 'Cilj (sek)';
+      document.getElementById('targetRepsVal').textContent = plankTargetSeconds + 's';
+    } else {
+      repLabel.textContent = 'ponovitve';
+      document.getElementById('repOrTimeLbl').textContent = 'Cilj reps';
+      document.getElementById('targetRepsVal').textContent = targetReps;
+    }
+  }
+
+  function updateAngleUI(ex, lms) {
+    let allGood = true, visibleCount = 0;
+    ex.angles.forEach(a => {
+      const p0 = getLandmarkPoint(lms, a.points[0]);
+      const p1 = getLandmarkPoint(lms, a.points[1]);
+      const p2 = getLandmarkPoint(lms, a.points[2]);
+      if (!p0 || !p1 || !p2) return;
+      const avgVis = [lms[a.points[0]], lms[a.points[1]], lms[a.points[2]]].reduce((s, l) => s + (l.visibility || 0), 0) / 3;
+      if (avgVis > 0.4) visibleCount++;
+      const angle = Math.round(calcAngle(p0, p1, p2));
+      const good  = angle >= a.min && angle <= a.max;
+      if (!good) allGood = false;
+      const key = a.name.replace(/\s/g, '_');
+      const valEl = document.getElementById('av_' + key);
+      const barEl = document.getElementById('ab_' + key);
+      const itemEl = document.getElementById('ai_' + key);
+      if (valEl)  { valEl.textContent = angle + '°'; valEl.className = 'angle-value ' + (good ? 'good' : 'bad'); }
+      if (barEl)  { barEl.style.width = Math.min(100, Math.max(5, (angle / 180) * 100)) + '%'; barEl.className = 'angle-bar ' + (good ? 'good' : 'bad'); }
+      if (itemEl) { itemEl.className = 'angle-item ' + (good ? 'good' : 'bad'); }
+    });
+    if (visibleCount >= ex.angles.length * 0.6) { visibilityBadge.textContent = '👁 Zaznano'; visibilityBadge.className = 'visibility-badge good'; }
+    else { visibilityBadge.textContent = '👁 Slaba pozicija'; visibilityBadge.className = 'visibility-badge bad'; }
+    return allGood;
+  }
+
+  function updateFormMeter() {
+    if (formScores.length === 0) { formMeterVal.textContent = '—'; formMeterVal.className = 'form-meter-val'; return; }
+    const pct = Math.round((formScores.filter(Boolean).length / formScores.length) * 100);
+    formMeterVal.textContent = pct + '%';
+    formMeterVal.className = 'form-meter-val ' + (pct >= 75 ? 'great' : pct >= 45 ? 'ok' : 'bad');
+  }
+
+  function updateRepCount(ex, lms) {
+    if (!ex.repAngle || isResting || isCountingDown || ex.isPlank) return;
+    const r = ex.repAngle;
+    const p0 = getLandmarkPoint(lms, r.points[0]);
+    const p1 = getLandmarkPoint(lms, r.points[1]);
+    const p2 = getLandmarkPoint(lms, r.points[2]);
+    if (!p0 || !p1 || !p2) return;
+    const angle = calcAngle(p0, p1, p2);
+    if (angle < r.downThresh && repPhase === 'up') {
+      repPhase = 'down'; phaseBadge.textContent = '↓ Dol'; phaseBadge.className = 'phase-badge down';
+    } else if (angle > r.upThresh && repPhase === 'down') {
+      repPhase = 'up';
+      repCount++; totalReps++;
+      repNumEl.textContent = repCount; totalRepsEl.textContent = totalReps;
+      const isGood = formScores.length > 0 && (formScores.filter(Boolean).length / formScores.length) > 0.55;
+      if (isGood) { goodReps++; goodRepsEl.textContent = goodReps; }
+      else        { badReps++;  badRepsEl.textContent  = badReps; }
+      formScores = [];
+      const score = goodReps + badReps > 0 ? Math.round((goodReps / (goodReps + badReps)) * 100) : 0;
+      formScoreEl.textContent = score + '%';
+      repFlash.classList.add('show');
+      setTimeout(() => repFlash.classList.remove('show'), 200);
+      beepRep();
+      if (repCount % 5 === 0) speak(repCount + ' ponovitev!');
+      phaseBadge.textContent = '↑ Gor'; phaseBadge.className = 'phase-badge up';
+      setTimeout(() => { if (!isResting && !isCountingDown) { phaseBadge.textContent = 'Pripravi se'; phaseBadge.className = 'phase-badge stand'; } }, 700);
+      if (repCount >= targetReps) {
+        const finalScore = goodReps + badReps > 0 ? Math.round((goodReps / (goodReps + badReps)) * 100) : 0;
+        saveSetToHistory(repCount, finalScore);
+        completedSets++;
+        if (completedSets >= targetSets) { buildSetsProgress(); showSetDone(); }
+        else { startRest(); }
+      }
+    }
+  }
+
+  // ── RISANJE SKELETA ───────────────────────────────────────────────────────────
+  function drawPoseCustom(lms) {
+    if (!lms) return;
+    const W = canvasEl.width, H = canvasEl.height;
+    const ex = EXERCISES[currentExercise];
+    const CONNECTIONS = [[11,12],[11,13],[13,15],[12,14],[14,16],[11,23],[12,24],[23,24],[23,25],[25,27],[24,26],[26,28],[27,29],[29,31],[28,30],[30,32]];
+    const badPoints = new Set();
+    ex.angles.forEach(a => {
+      const p0 = getLandmarkPoint(lms, a.points[0]);
+      const p1 = getLandmarkPoint(lms, a.points[1]);
+      const p2 = getLandmarkPoint(lms, a.points[2]);
+      if (!p0 || !p1 || !p2) return;
+      const angle = Math.round(calcAngle(p0, p1, p2));
+      if (angle < a.min || angle > a.max) a.points.forEach(p => badPoints.add(p));
+    });
+    ctx.lineWidth = 3;
+    CONNECTIONS.forEach(([a, b]) => {
+      const la = lms[a], lb = lms[b];
+      if (!la || !lb || la.visibility < 0.3 || lb.visibility < 0.3) return;
+      ctx.strokeStyle = (badPoints.has(a) || badPoints.has(b)) ? 'rgba(224,82,82,0.8)' : 'rgba(3,179,212,0.7)';
+      ctx.beginPath(); ctx.moveTo(la.x * W, la.y * H); ctx.lineTo(lb.x * W, lb.y * H); ctx.stroke();
+    });
+    [11,12,13,14,15,16,23,24,25,26,27,28].forEach(i => {
+      const lm = lms[i];
+      if (!lm || lm.visibility < 0.3) return;
+      ctx.beginPath(); ctx.arc(lm.x * W, lm.y * H, 5, 0, 2 * Math.PI);
+      ctx.fillStyle = badPoints.has(i) ? '#e05252' : '#037CBA'; ctx.fill();
+    });
+    ex.angles.forEach(a => {
+      const p0 = getLandmarkPoint(lms, a.points[0]);
+      const p1 = getLandmarkPoint(lms, a.points[1]);
+      const p2 = getLandmarkPoint(lms, a.points[2]);
+      if (!p0 || !p1 || !p2) return;
+      const angle = Math.round(calcAngle(p0, p1, p2));
+      ctx.font = 'bold 11px Montserrat, sans-serif';
+      ctx.fillStyle = (angle >= a.min && angle <= a.max) ? '#2d9e25' : '#e05252';
+      ctx.fillText(angle + '°', p1.x * W + 7, p1.y * H - 5);
+    });
+  }
+
+  // ── GLAVNI CALLBACK ───────────────────────────────────────────────────────────
+  function onResults(results) {
+    canvasEl.width  = videoEl.videoWidth  || canvasEl.offsetWidth;
+    canvasEl.height = videoEl.videoHeight || canvasEl.offsetHeight;
+    ctx.clearRect(0, 0, canvasEl.width, canvasEl.height);
+    if (!results.poseLandmarks) { visibilityBadge.textContent = '👁 Ni zaznave'; visibilityBadge.className = 'visibility-badge bad'; return; }
+    const lms = results.poseLandmarks;
+    currentLandmarks = lms;
+    drawPoseCustom(lms);
+    const ex = EXERCISES[currentExercise];
+    const allGood = updateAngleUI(ex, lms);
+    if (!isResting && !isCountingDown && workoutStarted) {
+      formScores.push(allGood);
+      updateFormMeter();
+      updateRepCount(ex, lms);
+      if (visibilityBadge.className.includes('bad')) { feedbackText.textContent = ex.tips.camera; feedbackText.className = 'feedback-text warn'; }
+      else if (allGood) { feedbackText.textContent = ex.tips.good; feedbackText.className = 'feedback-text ok'; speak('Odlično!'); triggerFormBeep(true); }
+      else { feedbackText.textContent = ex.tips.bad; feedbackText.className = 'feedback-text error'; speak('Popravi držo'); triggerFormBeep(false); }
+    }
+  }
+
+  // ── ZAŽENI KAMERO ─────────────────────────────────────────────────────────────
+  btnStart.addEventListener('click', async () => {
+    statusEl.textContent = 'Nalaganje MediaPipe...';
+    const pose = new Pose({ locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${f}` });
+    pose.setOptions({ modelComplexity: 1, smoothLandmarks: true, enableSegmentation: false, minDetectionConfidence: 0.5, minTrackingConfidence: 0.5 });
+    pose.onResults(onResults);
+    poseInstance = pose;
+    const camera = new Camera(videoEl, { onFrame: async () => { await pose.send({ image: videoEl }); }, width: 640, height: 480 });
+    camera.start()
+      .then(() => {
+        startOverlay.classList.add('hidden');
+        dotEl.classList.add('active');
+        statusEl.textContent = 'Kamera aktivna';
+        visibilityBadge.style.display = '';
+        cameraReadyTime = Date.now();
+        buildAngleUI(EXERCISES[currentExercise]);
+        buildSetsProgress();
+        feedbackText.textContent = EXERCISES[currentExercise].tips.camera;
+        feedbackText.className = 'feedback-text warn';
+      })
+      .catch(err => {
+        statusEl.textContent = 'Napaka kamere';
+        feedbackText.textContent = '⚠ Kamera ni dostopna. Preveri ali si dovolil dostop do kamere v brskalniku.';
+        feedbackText.className = 'feedback-text error';
+      });
+    cameraInstance = camera;
+  });
+
+  // ── ZAMENJAVA VAJE ────────────────────────────────────────────────────────────
+  document.querySelectorAll('.ex-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.ex-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      currentExercise = btn.dataset.ex;
+      stopPlankTimer();
+      buildAngleUI(EXERCISES[currentExercise]);
+      feedbackText.textContent = EXERCISES[currentExercise].tips.camera;
+      feedbackText.className = 'feedback-text warn';
+    });
+  });
+
+  // ── RESET ─────────────────────────────────────────────────────────────────────
+  function resetSet() {
+    repCount = 0; goodReps = 0; badReps = 0; formScores = [];
+    repNumEl.textContent = 0; goodRepsEl.textContent = 0; badRepsEl.textContent = 0;
+    formScoreEl.textContent = '—'; formMeterVal.textContent = '—';
+    repPhase = 'up';
+    phaseBadge.textContent = 'Pripravi se'; phaseBadge.className = 'phase-badge stand';
+    clearInterval(restTimer); isResting = false; isCountingDown = false;
+    restOverlay.classList.add('hidden');
+    countdownOverlay.classList.add('hidden');
+    clearInterval(setTimerInterval);
+    setTimerVal.textContent = '0:00';
+    stopPlankTimer();
+  }
+
+  function resetAll() {
+    if (floatingStartBtn) floatingStartBtn.textContent = '▶ Start trening';
+    resetSet();
+    totalReps = 0; completedSets = 0; currentSet = 1;
+    totalRepsEl.textContent = 0;
+    workoutStarted = false; workoutLog = [];
+    workoutDoneOverlay.classList.add('hidden');
+    setDoneOverlay.classList.add('hidden');
+    buildSetsProgress();
+    btnStartSet.textContent = '▶ Start';
+    btnStartSet.classList.remove('finish');
+    btnStartSet.classList.add('primary');
+  }
+
+  // ── INICIALIZACIJA ────────────────────────────────────────────────────────────
+  buildAngleUI(EXERCISES['squat']);
+  buildSetsProgress();
+  renderHistory();
+  renderRecords();
+  updateUserCountDisplay();
+</script>
+</body>
+</html>
